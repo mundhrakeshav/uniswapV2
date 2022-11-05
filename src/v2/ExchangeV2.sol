@@ -3,7 +3,7 @@
 pragma solidity 0.8.16;
 
 import {ERC20} from "solmate/tokens/ERC20.sol";
-import {Math} from "./Math.sol";
+import {Math} from "./libraries/Math.sol";
 
 interface IExchangeV2Callee {
     function exchangeV2Call(address sender, uint256 amount0Out, uint256 amount1Out, bytes calldata data) external;
