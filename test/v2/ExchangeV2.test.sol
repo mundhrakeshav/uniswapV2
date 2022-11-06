@@ -116,5 +116,4 @@ contract ExchangeV2Test is Test {
         assertEq(token0.balanceOf(user1), 10 ether - 1500);
         assertEq(token1.balanceOf(user1), 10 ether - 1000);
     }
-
 }
