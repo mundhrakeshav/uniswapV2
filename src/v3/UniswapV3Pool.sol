@@ -5,6 +5,7 @@ import {Tick} from "./lib/Tick.sol";
 import {Position} from "./lib/Position.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
 import {IUniswapV3MintCallback} from "./interfaces/IUniswapV3MintCallback.sol";
+import {IUniswapV3SwapCallback} from "./interfaces/IUniswapV3SwapCallback.sol";
 
 contract UniswapV3Pool {
     //
@@ -29,12 +30,28 @@ contract UniswapV3Pool {
         uint256 amount1
     );
 
+    event Swap(
+        address indexed sender,
+        address indexed recipient,
+        int256 amount0,
+        int256 amount1,
+        uint160 sqrtPriceX96,
+        uint128 liquidity,
+        int24 tick
+    );
+
     // Packing variables that are read together
     struct Slot0 {
         // Current sqrt(P)
         uint160 sqrtPriceX96;
         // Current tick
         int24 tick;
+    }
+
+    struct CallbackData {
+        address token0;
+        address token1;
+        address payer;
     }
 
     Slot0 public slot0;
@@ -65,6 +82,7 @@ contract UniswapV3Pool {
     //4.  the contract takes tokens from the user and verifies that correct amounts were set.
 
     // user specifies LL, not actual token amounts.
+    /// @param amount = liquidity
     function mint(address owner, int24 lowerTick, int24 upperTick, uint128 amount, bytes calldata data)
         external
         returns (uint256 amount0, uint256 amount1)
@@ -101,7 +119,7 @@ contract UniswapV3Pool {
 
         // Check if amount0 and amount1 have been transferred to the contract
         /* 
-        * we require pool balance increase by at least amount0 and amount1 respectively–this would mean the caller has transferred tokens to the pool. 
+            * we require pool balance increase by at least amount0 and amount1 respectively–this would mean the caller has transferred tokens to the pool. 
          */
 
         if (amount0 > 0 && balance0Before + amount0 > balance0()) {
@@ -115,11 +133,35 @@ contract UniswapV3Pool {
         emit Mint(msg.sender, owner, lowerTick, upperTick, amount, amount0, amount1);
     }
 
-    ////////////////////////////////////////////////////////////////////////////
-    //
-    // INTERNAL
-    //
-    ////////////////////////////////////////////////////////////////////////////
+    function swap(address recipient, bytes calldata data) public returns (int256 amount0, int256 amount1) {
+        // Hardcoded Values calculated from ./unimath.py
+        int24 nextTick = 85184;
+        uint160 nextPrice = 5604469350942327889444743441197;
+        amount0 = -0.008396714242162444 ether;
+        amount1 = 42 ether;
+
+        /*
+            * update the current tick and sqrtP since trading affects the current price:
+        */
+        (slot0.tick, slot0.sqrtPriceX96) = (nextTick, nextPrice);
+
+        IERC20(token0).transfer(recipient, uint256(-amount0));
+
+        uint256 balance1Before = balance1();
+        /* 
+            * The caller is expected to implement uniswapV3SwapCallback and transfer input tokens to the Pool contract in this function.
+        */
+        IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+
+        if (balance1Before + uint256(amount1) < balance1()) {
+            revert InsufficientInputAmount();
+        }
+        emit Swap(msg.sender, recipient, amount0, amount1, slot0.sqrtPriceX96, liquidity, slot0.tick);
+    }
+
+    /*
+    !!! INTERNAL
+    */
     function balance0() internal returns (uint256 balance) {
         balance = IERC20(token0).balanceOf(address(this));
     }
