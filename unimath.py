@@ -109,18 +109,18 @@ print("USDC in:", amount_in / eth, "\n")
 print("ETH out:", amount_out / eth, "\n")
 
 # Swap ETH for USDC
-# amount_in = 0.01337 * eth
+amount_in = 0.01337 * eth
 
-# print(f"\nSelling {amount_in/eth} ETH")
+print(f"\nSelling {amount_in/eth} ETH")
 
-# price_next = int((liq * q96 * sqrtp_cur) // (liq * q96 + amount_in * sqrtp_cur))
+price_next = int((liq * q96 * sqrtp_cur) // (liq * q96 + amount_in * sqrtp_cur))
 
-# print("New price:", (price_next / q96) ** 2)
-# print("New sqrtP:", price_next)
-# print("New tick:", price_to_tick((price_next / q96) ** 2))
+print("New price:", (price_next / q96) ** 2)
+print("New sqrtP:", price_next)
+print("New tick:", price_to_tick((price_next / q96) ** 2))
 
-# amount_in = calc_amount0(liq, price_next, sqrtp_cur)
-# amount_out = calc_amount1(liq, price_next, sqrtp_cur)
+amount_in = calc_amount0(liq, price_next, sqrtp_cur)
+amount_out = calc_amount1(liq, price_next, sqrtp_cur)
 
-# print("ETH in:", amount_in / eth)
-# print("USDC out:", amount_out / eth)
+print("ETH in:", amount_in / eth)
+print("USDC out:", amount_out / eth)
