@@ -17,9 +17,11 @@ library Position {
         view
         returns (Position.Info storage position)
     {
-        /*  Each position is uniquely identified by three keys: owner address, lower tick index, and upper tick index. 
-            We hash the three to make storing of data cheaper: when hashed, every key will take 32 bytes, 
-            instead of 96 bytes when owner, lowerTick, and upperTick are separate keys. */
+        /*  
+            *   Each position is uniquely identified by three keys: owner address, lower tick index, and upper tick index. 
+            *   We hash the three to make storing of data cheaper: when hashed, every key will take 32 bytes, 
+            *   instead of 96 bytes when owner, lowerTick, and upperTick are separate keys. 
+        */
         position = self[keccak256(abi.encodePacked(owner, lowerTick, upperTick))];
     }
 }
