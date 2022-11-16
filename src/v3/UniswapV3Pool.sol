@@ -73,7 +73,7 @@ contract UniswapV3Pool is IUniswapV3Pool {
         amount0 = Math.calcAmount0Delta(
             TickMath.getSqrtRatioAtTick(_slot0.tick), TickMath.getSqrtRatioAtTick(upperTick), amount
         );
-        amount1 = Math.calcAmount0Delta(
+        amount1 = Math.calcAmount1Delta(
             TickMath.getSqrtRatioAtTick(_slot0.tick), TickMath.getSqrtRatioAtTick(lowerTick), amount
         );
 
