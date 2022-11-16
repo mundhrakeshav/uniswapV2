@@ -235,8 +235,6 @@ contract UniswapV3Test is Test, TestUtils {
         transferInMintCallback = params.transferInMintCallback;
         transferInSwapCallback = params.transferInSwapCallback;
 
-
-
         // If mintLiquidity is set to true call mint
         if (params.mintLiqudity) {
             (poolBalance0, poolBalance1) =

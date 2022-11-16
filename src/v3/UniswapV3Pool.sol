@@ -2,6 +2,7 @@
 pragma solidity ^0.8.16;
 
 import {Tick} from "./lib/Tick.sol";
+import {TickMath} from "./lib/TickMath.sol";
 import {Position} from "./lib/Position.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
 import {IUniswapV3MintCallback} from "./interfaces/IUniswapV3MintCallback.sol";
@@ -13,9 +14,6 @@ contract UniswapV3Pool is IUniswapV3Pool {
     using Tick for mapping(int24 => Tick.Info);
     using Position for mapping(bytes32 => Position.Info);
     using Position for Position.Info;
-
-    int24 internal constant MIN_TICK = -887272;
-    int24 internal constant MAX_TICK = -MIN_TICK;
 
     // Pool tokens, immutable
     address public immutable token0;
@@ -50,7 +48,9 @@ contract UniswapV3Pool is IUniswapV3Pool {
         returns (uint256 amount0, uint256 amount1)
     {
         // Checks
-        if (lowerTick >= upperTick || lowerTick < MIN_TICK || upperTick > MAX_TICK) revert InvalidTickRange();
+        if (lowerTick >= upperTick || lowerTick < TickMath.MIN_TICK || upperTick > TickMath.MAX_TICK) {
+            revert InvalidTickRange();
+        }
         if (amount == 0) revert ZeroLiquidity();
 
         // Update upper and lower Ticks
