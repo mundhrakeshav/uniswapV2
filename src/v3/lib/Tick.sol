@@ -7,13 +7,18 @@ library Tick {
         uint128 liquidity;
     }
 
-    function update(mapping(int24 => Tick.Info) storage self, int24 tick, uint128 liquidityDelta) internal {
+    function update(mapping(int24 => Tick.Info) storage self, int24 tick, uint128 liquidityDelta)
+        internal
+        returns (bool _flipped)
+    {
         // Get the TickInfo referenced from mapping tick => tickInfo
         Tick.Info storage tickInfo = self[tick];
 
         // Calculate before and after liquidity
         uint128 liquidityBefore = tickInfo.liquidity;
         uint128 liquidityAfter = liquidityBefore + liquidityDelta;
+
+        _flipped = (liquidityAfter == 0) != (liquidityBefore == 0);
 
         // Initialized if not initialized
         if (liquidityBefore == 0) {

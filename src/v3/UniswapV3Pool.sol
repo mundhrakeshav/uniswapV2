@@ -2,7 +2,9 @@
 pragma solidity ^0.8.16;
 
 import {Tick} from "./lib/Tick.sol";
+import {Math} from "./lib/Math.sol";
 import {TickMath} from "./lib/TickMath.sol";
+import {TickBitmap} from "./lib/TickBitmap.sol";
 import {Position} from "./lib/Position.sol";
 import {IERC20} from "./interfaces/IERC20.sol";
 import {IUniswapV3MintCallback} from "./interfaces/IUniswapV3MintCallback.sol";
@@ -14,6 +16,7 @@ contract UniswapV3Pool is IUniswapV3Pool {
     using Tick for mapping(int24 => Tick.Info);
     using Position for mapping(bytes32 => Position.Info);
     using Position for Position.Info;
+    using TickBitmap for mapping(int16 => uint256);
 
     // Pool tokens, immutable
     address public immutable token0;
@@ -28,6 +31,8 @@ contract UniswapV3Pool is IUniswapV3Pool {
     mapping(int24 => Tick.Info) public ticks;
     // Positions info
     mapping(bytes32 => Position.Info) public positions;
+    //Bitmap
+    mapping(int16 => uint256) public tickBitmap;
 
     constructor(address token0_, address token1_, uint160 sqrtPriceX96, int24 tick) {
         token0 = token0_;
@@ -36,13 +41,6 @@ contract UniswapV3Pool is IUniswapV3Pool {
         slot0 = Slot0({sqrtPriceX96: sqrtPriceX96, tick: tick});
     }
 
-    //1.  a user specifies a price range and an amount of liquidity;
-    //2.  the contract updates the ticks and positions mappings;
-    //3.  the contract calculates token amounts the user must send (we’ll pre-calculate and hard code them);
-    //4.  the contract takes tokens from the user and verifies that correct amounts were set.
-
-    // user specifies LL, not actual token amounts.
-    /// @param amount = liquidity
     function mint(address owner, int24 lowerTick, int24 upperTick, uint128 amount, bytes calldata data)
         external
         returns (uint256 amount0, uint256 amount1)
@@ -54,16 +52,30 @@ contract UniswapV3Pool is IUniswapV3Pool {
         if (amount == 0) revert ZeroLiquidity();
 
         // Update upper and lower Ticks
-        ticks.update(lowerTick, amount);
-        ticks.update(upperTick, amount);
+        bool _flippedLower = ticks.update(lowerTick, amount);
+        bool _flippedUpper = ticks.update(upperTick, amount);
+
+        if (_flippedLower) {
+            tickBitmap.flipTick(lowerTick, 1);
+        }
+
+        if (_flippedUpper) {
+            tickBitmap.flipTick(upperTick, 1);
+        }
 
         // Get position for those owner and desired ticks
         Position.Info storage position = positions.get(owner, lowerTick, upperTick);
         // Update Position
         position.update(amount);
 
-        amount0 = 0.99897661834742528 ether; //! TODO: replace with calculation
-        amount1 = 5000 ether; //! TODO: replace with calculation
+        Slot0 memory _slot0 = slot0;
+
+        amount0 = Math.calcAmount0Delta(
+            TickMath.getSqrtRatioAtTick(_slot0.tick), TickMath.getSqrtRatioAtTick(upperTick), amount
+        );
+        amount1 = Math.calcAmount0Delta(
+            TickMath.getSqrtRatioAtTick(_slot0.tick), TickMath.getSqrtRatioAtTick(lowerTick), amount
+        );
 
         liquidity += uint128(amount);
 
