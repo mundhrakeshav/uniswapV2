@@ -44,4 +44,21 @@ interface IUniswapV3Pool {
         address token1;
         address payer;
     }
+
+    // Mantains swaps state
+    struct SwapState {
+        uint256 amountSpecifiedRemaining;
+        uint256 amountCalculated;
+        uint160 sqrtPriceX96;
+        int24 tick;
+    }
+
+    // Mantains state in an iteration of swap
+    struct StepState {
+        uint160 sqrtPriceStartX96;
+        int24 nextTick;
+        uint160 sqrtPriceNextX96;
+        uint256 amountIn;
+        uint256 amountOut;
+    }
 }

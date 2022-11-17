@@ -2,6 +2,7 @@
 pragma solidity ^0.8.16;
 
 import {Tick} from "./lib/Tick.sol";
+import {SwapMath} from "./lib/SwapMath.sol";
 import {Math} from "./lib/Math.sol";
 import {TickMath} from "./lib/TickMath.sol";
 import {TickBitmap} from "./lib/TickBitmap.sol";
@@ -107,29 +108,60 @@ contract UniswapV3Pool is IUniswapV3Pool {
         emit Mint(msg.sender, owner, lowerTick, upperTick, amount, amount0, amount1);
     }
 
-    function swap(address recipient, bytes calldata data) public returns (int256 amount0, int256 amount1) {
-        // Hardcoded Values calculated from ./unimath.py
-        int24 nextTick = 85184;
-        uint160 nextPrice = 5604469350942327889444743441197;
-        amount0 = -0.008396714242162444 ether; // -ve as it goes out of system
-        amount1 = 42 ether;
+    function swap(address recipient, bool _zeroForOne, uint256 _amountSpecified, bytes calldata data)
+        public
+        returns (int256 amount0, int256 amount1)
+    {
+        Slot0 memory _slot0 = slot0;
+
+        SwapState memory _swapState = SwapState({
+            amountSpecifiedRemaining: _amountSpecified,
+            amountCalculated: 0,
+            sqrtPriceX96: _slot0.sqrtPriceX96,
+            tick: _slot0.tick
+        });
+
+        while (_swapState.amountSpecifiedRemaining > 0) {
+            StepState memory _step;
+            _step.sqrtPriceStartX96 = _swapState.sqrtPriceX96;
+            (_step.nextTick,) = tickBitmap.nextInitializedTickWithinOneWord(_swapState.tick, 1, _zeroForOne);
+            _step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(_step.nextTick);
+            SwapMath.computeSwapStep(
+                _step.sqrtPriceStartX96, _step.sqrtPriceNextX96, liquidity, _swapState.amountSpecifiedRemaining
+            );
+            _swapState.amountSpecifiedRemaining -= _step.amountIn;
+            _swapState.amountCalculated += _step.amountOut;
+            _swapState.tick = TickMath.getTickAtSqrtRatio(_swapState.sqrtPriceX96);
+        }
 
         /*
             * update the current tick and sqrtP since trading affects the current price:
         */
-        (slot0.tick, slot0.sqrtPriceX96) = (nextTick, nextPrice);
-
-        IERC20(token0).transfer(recipient, uint256(-amount0));
-
-        uint256 balance1Before = balance1();
-        /* 
-            * The caller is expected to implement uniswapV3SwapCallback and transfer input tokens to the Pool contract in this function.
-        */
-        IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
-
-        if (balance1Before + uint256(amount1) > balance1()) {
-            revert InsufficientInputAmount();
+        if (_swapState.tick != _slot0.tick) {
+            (slot0.tick, slot0.sqrtPriceX96) = (_swapState.tick, _swapState.sqrtPriceX96);
         }
+
+        (amount0, amount1) = _zeroForOne
+            ? (int256(_amountSpecified - _swapState.amountSpecifiedRemaining), -int256(_swapState.amountCalculated))
+            : (-int256(_swapState.amountCalculated), int256(_amountSpecified - _swapState.amountSpecifiedRemaining));
+
+        if (_zeroForOne) {
+            IERC20(token1).transfer(recipient, uint256(-amount1));
+            uint256 balance0Before = balance0();
+            IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+            if (balance0Before + uint256(amount0) > balance0()) {
+                revert InsufficientInputAmount();
+            }
+        } else {
+            IERC20(token0).transfer(recipient, uint256(-amount0));
+
+            uint256 balance1Before = balance1();
+            IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+            if (balance1Before + uint256(amount1) > balance1()) {
+                revert InsufficientInputAmount();
+            }
+        }
+
         emit Swap(msg.sender, recipient, amount0, amount1, slot0.sqrtPriceX96, liquidity, slot0.tick);
     }
 
