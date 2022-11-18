@@ -126,7 +126,8 @@ contract UniswapV3Pool is IUniswapV3Pool {
             _step.sqrtPriceStartX96 = _swapState.sqrtPriceX96;
             (_step.nextTick,) = tickBitmap.nextInitializedTickWithinOneWord(_swapState.tick, 1, _zeroForOne);
             _step.sqrtPriceNextX96 = TickMath.getSqrtRatioAtTick(_step.nextTick);
-            SwapMath.computeSwapStep(
+            
+            (_swapState.sqrtPriceX96, _step.amountIn, _step.amountOut) = SwapMath.computeSwapStep(
                 _step.sqrtPriceStartX96, _step.sqrtPriceNextX96, liquidity, _swapState.amountSpecifiedRemaining
             );
             _swapState.amountSpecifiedRemaining -= _step.amountIn;
