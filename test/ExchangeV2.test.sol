@@ -2,8 +2,8 @@
 pragma solidity ^0.8.16;
 
 import {Test} from "forge-std/Test.sol";
-import {Math} from "v2/libraries/Math.sol";
-import {ExchangeV2} from "v2/ExchangeV2.sol";
+import {Math} from "src/libraries/Math.sol";
+import {ExchangeV2} from "src/ExchangeV2.sol";
 import {ERC20Mintable} from "./ERC20Mintable.sol";
 import {console} from "forge-std/console.sol";
 
